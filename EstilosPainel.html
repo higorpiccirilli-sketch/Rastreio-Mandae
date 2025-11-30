@@ -1,0 +1,119 @@
+/* Importa a fonte (substitui os <link> do Google Fonts) */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+:root{
+  --bg: #1f232a;
+  --panel: #282c34;
+  --text: #cfd6df;
+  --muted: #9aa4b2;
+  --border: #353b45;
+  --accent: #61afef;      /* azul */
+  --accent-warm: #f39c12; /* laranja (primário) */
+  --ok: #98c379;
+  --err: #e06c75;
+  --warn: #e5c07b;
+  --radius: 12px;
+  --shadow: 0 6px 20px rgba(0,0,0,.25);
+}
+
+html, body { height: 100%; }
+body {
+  font-family: "Roboto", Arial, sans-serif;
+  background: var(--bg); color: var(--text);
+  margin: 0; padding: 16px;
+}
+
+h1, h2 { margin: 0 0 12px; }
+h2 { font-size: 16px; color: var(--text); letter-spacing: .2px; }
+
+.section {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow);
+  margin-bottom: 14px;
+}
+.section > h2 {
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--border);
+  color: var(--accent);
+}
+
+.muted { color: var(--muted); }
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 560px) { .actions-grid { grid-template-columns: 1fr 1fr; } }
+
+.btn {
+  border: none; border-radius: 10px; padding: 10px 14px; font-weight: 700; cursor: pointer;
+  transition: filter .15s ease, transform .02s ease-in, background .2s ease;
+  box-shadow: var(--shadow);
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary  { background: var(--accent-warm); color: #1a1205; }
+.btn-primary:hover { filter: brightness(1.06); }
+.btn-secondary{ background: #3b4352; color: #e5eaf1; }
+.btn-secondary:hover { filter: brightness(1.05); }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); }
+.btn:disabled { opacity: .7; cursor: not-allowed; }
+
+.btn-icon-sm {
+  border: 1px solid var(--border);
+  background: #3b4352;
+  color: #e5eaf1;
+  border-radius: 8px;
+  padding: 4px 9px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.btn-icon-sm:hover { filter: brightness(1.05); }
+.btn-icon-sm:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Lista de XMLs com checkboxes */
+.xml-list {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255,255,255,.02);
+  max-height: 220px;
+  overflow-y: auto;
+}
+.xml-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px dashed rgba(255,255,255,.06);
+}
+.xml-item:last-child { border-bottom: none; }
+.xml-item input[type="checkbox"] { transform: scale(1.05); }
+.xml-name {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-weight: 700; color: var(--text);
+}
+
+/* Mini-lista de arquivos recentes */
+.mini-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.mini-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255,255,255,.02);
+}
+.mini-file { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-weight: 700; color: var(--text); }
+.mini-file .meta { font-weight: 400; font-size: 12px; color: var(--muted); }
+
+/* Spinner minimalista (mantém UX dos botões) */
+.spinner {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.25); border-top-color: #fff;
+  border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: -2px; margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

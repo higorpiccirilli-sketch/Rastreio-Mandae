@@ -1,1 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: 'Roboto Mono', monospace; background-color: #282c34; color: #abb2bf; font-size: 14px; margin: 0; padding: 20px 20px 80px 20px; }
+    #log-container { white-space: pre-wrap; word-wrap: break-word; }
+    .log-entry { margin-bottom: 5px; }
+    .status-ok { color: #98c379; }
+    .status-andamento { color: #61afef; }
+    .status-erro { color: #e06c75; font-weight: bold; }
+    .status-final { color: #c678dd; font-weight: bold; margin-top: 15px; border-top: 1px solid #444; padding-top: 15px; }
+    #footer { position: fixed; bottom: 0; left: 0; width: 100%; text-align: right; padding: 15px 20px; background-color: #282c34; border-top: 1px solid #333; box-sizing: border-box; }
+    button { background-color: #61afef; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+    button:disabled { background-color: #555; cursor: not-allowed; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
 
+  <div id="log-container">
+    <div class="log-entry status-andamento">[INICIANDO] Preparando execução...</div>
+  </div>
+
+  <div id="footer">
+    <button id="close-button" onclick="google.script.host.close()" disabled>Fechar</button>
+  </div>
+
+  <script>
+    // Variáveis injetadas pelo template do Apps Script:
+    // processFn: string com o nome do wrapper do servidor
+    // serializedArgs: JSON string com os argumentos (ex.: ["id1","id2"]) ou "" se não houver
+    const PROCESS_FN = '<?= processFn ?>';
+    const SERIALIZED_ARGS = '<?= serializedArgs ?>';
+
+    let poller;
+    let lastStatus = '';
+    const executionId = Date.now();
+
+    function checkForUpdates() {
+      google.script.run
+        .withSuccessHandler(status => {
+          if (status && status !== lastStatus) {
+            appendLog(status);
+            lastStatus = status;
+          }
+        })
+        .obterStatusDoLancamento(executionId);
+    }
+
+    function appendLog(message, isFinal = false) {
+      const container = document.getElementById('log-container');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+
+      if (message.includes('[OK]')) entry.classList.add('status-ok');
+      else if (message.includes('[ERRO]')) entry.classList.add('status-erro');
+      else if (message.includes('[EM ANDAMENTO]')) entry.classList.add('status-andamento');
+      if (isFinal) entry.classList.add('status-final');
+
+      entry.textContent = message;
+      container.appendChild(entry);
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    function onProcessSuccess(finalMessage) {
+      clearInterval(poller);
+      checkForUpdates();
+      setTimeout(() => {
+        appendLog('✅ ' + (finalMessage || "[SUCESSO] Processo concluído."), true);
+        document.getElementById('close-button').disabled = false;
+      }, 500);
+    }
+
+    function onProcessFailure(error) {
+      clearInterval(poller);
+      checkForUpdates();
+      setTimeout(() => {
+        appendLog('[ERRO FATAL] ' + (error && error.message ? error.message : String(error)), true);
+        document.getElementById('close-button').disabled = false;
+      }, 500);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      poller = setInterval(checkForUpdates, 1500);
+
+      const args = SERIALIZED_ARGS ? JSON.parse(SERIALIZED_ARGS) : [];
+      // Invoca dinamicamente o wrapper com (executionId, ...args)
+      google.script.run
+        .withSuccessHandler(onProcessSuccess)
+        .withFailureHandler(onProcessFailure)[PROCESS_FN](executionId, ...args);
+    });
+  </script>
+</body>
+</html>

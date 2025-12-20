@@ -1,1 +1,239 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      :root{
+        --bg:#1f232a;--panel:#282c34;--text:#cfd6df;--muted:#9aa4b2;--border:#353b45;
+        --accent:#61afef;--accent-warm:#f39c12;--radius:12px;--shadow:0 6px 20px rgba(0,0,0,.25);
+      }
+      html,body{height:100%} body{font-family:Arial, sans-serif;background:var(--bg);color:var(--text);margin:0;padding:16px}
+      h1,h2{margin:0 0 12px} h2{font-size:16px;color:var(--text);letter-spacing:.2px}
+      .section{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);margin-bottom:14px}
+      .section>h2{padding-bottom:10px;border-bottom:1px dashed var(--border);color:var(--accent)}
+      .muted{color:var(--muted)}
+      .actions-grid{display:grid;grid-template-columns:1fr;gap:12px}
+      @media(min-width:560px){.actions-grid{grid-template-columns:1fr 1fr}}
+      .btn{border:none;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;transition:filter .15s,transform .02s,background .2s;box-shadow:var(--shadow)}
+      .btn:active{transform:translateY(1px)}
+      .btn-primary{background:var(--accent-warm);color:#1a1205}.btn-primary:hover{filter:brightness(1.06)}
+      .btn-secondary{background:#3b4352;color:#e5eaf1}.btn-secondary:hover{filter:brightness(1.05)}
+      .btn-icon-sm{border:1px solid var(--border);background:#3b4352;color:#e5eaf1;border-radius:8px;padding:4px 9px;cursor:pointer;font-weight:700}
+      .btn-icon-sm:hover{filter:brightness(1.05)} .btn:disabled,.btn-icon-sm:disabled{opacity:.6;cursor:not-allowed}
+      .xml-list{border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.02);max-height:220px;overflow-y:auto}
+      .xml-item{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px dashed rgba(255,255,255,.06)}
+      .xml-item:last-child{border-bottom:none} .xml-item input[type="checkbox"]{transform:scale(1.05)}
+      .xml-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;color:var(--text)}
+      .mini-list{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+      .mini-list li{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:6px 8px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.02)}
+      .mini-file{display:flex;flex-direction:column;gap:2px;min-width:0}
+      .mini-file a{color:#fff;text-decoration:none;font-weight:700}    /* <<< Nome em BRANCO */
+      .mini-file a:hover{text-decoration:underline}
+      .mini-file .meta{font-weight:400;font-size:12px;color:var(--muted)} /* timestamp permanece igual */
+      .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:-2px;margin-right:6px}
+      @keyframes spin{to{transform:rotate(360deg)}}
+    </style>
+  </head>
+  <body>
+    <!-- Importar XMLs -->
+    <div class="section" id="xml-section">
+      <h2 style="display:flex; align-items:center; gap:8px;">
+        Importar Arquivos XML (de Hoje)
+        <button id="btn-refresh-xml" class="btn-icon-sm" title="Atualizar lista">↻</button>
+      </h2>
 
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <input type="checkbox" id="select-all">
+        <label for="select-all" class="muted" style="user-select:none;">Selecionar Todos</label>
+      </div>
+
+      <div id="fileList" class="xml-list">
+        <div class="xml-item muted">Carregando...</div>
+      </div>
+
+      <div class="actions-grid" style="margin-top:12px;">
+        <button id="btn-import-selected" class="btn btn-primary">📥 Importar Selecionados</button>
+        <button id="btn-import-all" class="btn btn-secondary">📦 Importar Todos</button>
+      </div>
+      <p class="muted" style="margin-top:10px;">Ao clicar, o <strong>Log em tempo real</strong> será aberto e você acompanha tudo na hora.</p>
+    </div>
+
+    <!-- Exportação -->
+    <div class="section" id="export-section">
+      <h2>Gerar Arquivo de Exportação</h2>
+      <button id="btn-export" class="btn btn-primary" style="width:100%;">⬇️ Gerar .xlsx</button>
+      <p class="muted" style="margin-top:10px;">Gera o arquivo .xlsx usando a planilha template e atualiza o Log com o link.</p>
+    </div>
+
+    <!-- Últimos arquivos -->
+    <div class="section" id="recent-files-section">
+      <h2 style="display:flex; align-items:center; gap:8px;">
+        Últimos Arquivos
+        <button id="btn-refresh-files" class="btn-icon-sm" title="Atualizar lista">↻</button>
+      </h2>
+      <ul id="panel-files-list" class="mini-list" style="margin-top:10px;">
+        <li><span class="muted">Carregando...</span></li>
+      </ul>
+    </div>
+
+    <script>
+      // ====== Boot
+      document.addEventListener('DOMContentLoaded', () => {
+        getDriveFiles();
+        loadRecentLinks();
+
+        document.getElementById('btn-refresh-xml').addEventListener('click', () => { disableTemp('btn-refresh-xml'); getDriveFiles(); });
+        document.getElementById('btn-refresh-files').addEventListener('click', () => { disableTemp('btn-refresh-files'); loadRecentLinks(); });
+        document.getElementById('btn-import-selected').addEventListener('click', importSelectedFiles);
+        document.getElementById('btn-import-all').addEventListener('click', importAllFiles);
+        document.getElementById('btn-export').addEventListener('click', runExport);
+        document.getElementById('select-all').addEventListener('click', function(){ toggleAll(this); });
+      });
+
+      function disableTemp(btnId) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        btn.disabled = true;
+        setTimeout(() => btn.disabled = false, 800);
+      }
+
+      // ====== Backend
+      function getDriveFiles() {
+        const container = document.getElementById('fileList');
+        container.innerHTML = `<div class="xml-item muted">Carregando...</div>`;
+        google.script.run
+          .withSuccessHandler(displayFiles)
+          .withFailureHandler(err => {
+            container.innerHTML = `<div class="xml-item muted">Erro: ${escapeHtml(err && err.message ? err.message : String(err))}</div>`;
+          })
+          .listXmlFiles();
+      }
+
+      function loadRecentLinks() {
+        const ul = document.getElementById('panel-files-list');
+        ul.innerHTML = '<li><span class="muted">Carregando...</span></li>';
+        google.script.run
+          .withSuccessHandler(displayRecentLinks)
+          .withFailureHandler(err => {
+            ul.innerHTML = `<li><span class="muted">Erro: ${escapeHtml(err && err.message ? err.message : String(err))}</span></li>`;
+          })
+          .getRecentExportLinks();
+      }
+
+      // ====== Render XMLs
+      function displayFiles(files) {
+        const fileListDiv = document.getElementById('fileList');
+        if (!files || files.length === 0) {
+          fileListDiv.innerHTML = `<div class="xml-item muted">Nenhum arquivo XML de hoje encontrado.</div>`;
+          return;
+        }
+        fileListDiv.innerHTML = files.map(file => `
+          <label class="xml-item" title="${escapeHtml(file.name)}">
+            <input type="checkbox" class="file-checkbox" value="${file.id}">
+            <span class="xml-name">${escapeHtml(shorten(file.name, 120))}</span>
+          </label>
+        `).join('');
+      }
+
+      // ====== Render “Últimos Arquivos”
+      function displayRecentLinks(items) {
+        const ul = document.getElementById('panel-files-list');
+        if (!items || items.length === 0) {
+          ul.innerHTML = '<li><span class="muted">Nenhum arquivo de exportação recente.</span></li>';
+          return;
+        }
+        ul.innerHTML = items.map(item => {
+          const rawName = item.name || 'Rastreio_mandae.xlsx';
+          const name = escapeHtml(shorten(rawName, 80));
+          const openUrl = item.url;
+
+          // >>> Download direto blindado: extrai o ID de qualquer URL (D ou view) e monta uc?export=download
+          const fileId = getFileIdFromAnyUrl(item.downloadUrl || item.url);
+          const dlUrl  = fileId ? ('https://drive.google.com/uc?export=download&id=' + fileId) : (item.downloadUrl || item.url);
+          const ts     = escapeHtml(item.timestamp || '');
+
+          // Usa atributo download para sugerir nome do arquivo
+          const safeDownloadName = escapeHtml(sanitizeFilename(rawName));
+
+          return `
+            <li>
+              <div class="mini-file">
+                <a href="${openUrl}" target="_blank" rel="noopener" title="${escapeHtml(rawName)}">${name}</a>
+                <span class="meta">${ts}</span>
+              </div>
+              <a href="${dlUrl}" target="_blank" rel="noopener" download="${safeDownloadName}" title="Baixar .xlsx" style="text-decoration:none;">⬇️</a>
+            </li>
+          `;
+        }).join('');
+      }
+
+      // ====== Seleção em massa
+      function toggleAll(source) {
+        document.querySelectorAll('.file-checkbox').forEach(cb => cb.checked = source.checked);
+      }
+
+      // ====== Estado (UX)
+      function setLoadingFor(buttonId, isLoading, labelWhileLoading) {
+        const btn = document.getElementById(buttonId);
+        if (!btn) return;
+        if (isLoading) {
+          btn.disabled = true;
+          if (!btn.dataset.originalLabel) btn.dataset.originalLabel = btn.textContent.trim();
+          btn.innerHTML = `<span class="spinner" aria-hidden="true"></span>${labelWhileLoading || 'Abrindo log...'}`;
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = btn.dataset.originalLabel || btn.textContent;
+        }
+      }
+      function setImportsLoading(isLoading) {
+        setLoadingFor('btn-import-selected', isLoading, 'Abrindo log...');
+        setLoadingFor('btn-import-all', isLoading, 'Abrindo log...');
+      }
+      function setExportLoading(isLoading) {
+        setLoadingFor('btn-export', isLoading, 'Abrindo log...');
+      }
+
+      // ====== Ações (Log RT)
+      function importSelectedFiles() {
+        const selectedFiles = Array.from(document.querySelectorAll('.file-checkbox:checked')).map(cb => cb.value);
+        if (selectedFiles.length === 0) { alert('Nenhum arquivo selecionado!'); return; }
+        setImportsLoading(true);
+        google.script.run
+          .withSuccessHandler(() => setImportsLoading(false))
+          .withFailureHandler(err => { setImportsLoading(false); alert((err && err.message) ? err.message : String(err)); })
+          .showLogWindowImportXml(selectedFiles);
+      }
+
+      function importAllFiles() {
+        const allFiles = Array.from(document.querySelectorAll('.file-checkbox')).map(cb => cb.value);
+        if (allFiles.length === 0) { alert('Nenhum arquivo para importar!'); return; }
+        setImportsLoading(true);
+        google.script.run
+          .withSuccessHandler(() => setImportsLoading(false))
+          .withFailureHandler(err => { setImportsLoading(false); alert((err && err.message) ? err.message : String(err)); })
+          .showLogWindowImportXml(allFiles);
+      }
+
+      function runExport() {
+        setExportLoading(true);
+        google.script.run
+          .withSuccessHandler(() => setExportLoading(false))
+          .withFailureHandler(err => { setExportLoading(false); alert((err && err.message) ? err.message : String(err)); })
+          .showLogWindowExportacao();
+      }
+
+      // ====== Utils
+      function shorten(str, max){ if(!str) return ''; return (str.length>max)?(str.slice(0,max-1)+'…'):str; }
+      function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+      function sanitizeFilename(name){ return String(name||'arquivo.xlsx').replace(/[\\/:*?"<>|]+/g,'_'); }
+      function getFileIdFromAnyUrl(url){
+        if(!url) return '';
+        try{
+          let m = url.match(/[?&]id=([a-zA-Z0-9-_]+)/); if(m) return m[1];
+          m = url.match(/\/(?:spreadsheets|file)\/d\/([a-zA-Z0-9-_]+)/); if(m) return m[1];
+        }catch(e){}
+        return '';
+      }
+    </script>
+  </body>
+</html>
